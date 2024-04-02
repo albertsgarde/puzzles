@@ -1,3 +1,4 @@
 /target
 /Cargo.lock
 /src/bin/*test.rs
+/data/camping/solutions
