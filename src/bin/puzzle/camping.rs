@@ -6,7 +6,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use clap::{Args, Parser, Subcommand};
+use clap::Args;
 use puzzles::camping::{self, Map, MaybeTransposedMap};
 
 #[derive(Clone, Debug, Args)]
@@ -87,30 +87,4 @@ impl Camping {
         }
         Ok(())
     }
-}
-
-#[derive(Clone, Debug, Subcommand)]
-pub enum Game {
-    Camping(Camping),
-}
-
-#[derive(Clone, Debug, Parser)]
-pub struct Cli {
-    #[command(subcommand)]
-    game: Game,
-}
-
-impl Cli {
-    pub fn run(self) -> Result<()> {
-        match self.game {
-            Game::Camping(camping) => camping.run()?,
-        }
-        Ok(())
-    }
-}
-
-pub fn main() -> Result<()> {
-    let cli = Cli::parse();
-    cli.run()?;
-    Ok(())
 }
