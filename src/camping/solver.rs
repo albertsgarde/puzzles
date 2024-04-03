@@ -1,4 +1,4 @@
-use crate::location::Location;
+use crate::location::{GridIter, Location};
 
 use anyhow::{ensure, Context, Result};
 
@@ -218,18 +218,83 @@ pub fn solve_step(map: &mut Map) -> Result<bool> {
     Ok(changed)
 }
 
-pub fn solve(map: &Map) -> Result<(Map, bool)> {
-    let mut map = map.clone();
-    presolve(&mut map).context("Error while presolving.")?;
-    for i in 0.. {
-        let changed = solve_step(&mut map)
-            .with_context(|| format!("Error while performing solve step {i}."))?;
-        if map.is_complete() {
-            return Ok((map, true));
-        }
-        if !changed {
-            return Ok((map, false));
+struct GuessIter {
+    location_iter: GridIter,
+}
+
+impl GuessIter {
+    fn new(map: &Map) -> Self {
+        Self {
+            location_iter: Location::grid_iter(map.dim()),
         }
     }
-    unreachable!()
+
+    fn next(&mut self, map: &Map) -> Option<(Location, bool)> {
+        for loc in &mut self.location_iter {
+            if map.get(loc) == Some(Tile::Free) {
+                return Some((loc, true));
+            }
+        }
+        None
+    }
+}
+
+fn next_try(stack: &mut Vec<(Map, GuessIter)>) -> Option<Map> {
+    let mut new_map = None;
+    while new_map.is_none() {
+        if let Some((prev_map, mut guess_iter)) = stack.pop() {
+            if let Some((loc, tile)) = guess_iter.next(&prev_map) {
+                let mut map = prev_map.clone();
+                if tile {
+                    map.add_tent(loc).expect("Expected to add tent.");
+                } else {
+                    map.add_blocked(loc).expect("Expected to add blocked.");
+                }
+                new_map = Some(map);
+                stack.push((prev_map, guess_iter));
+            }
+        } else {
+            return None;
+        }
+    }
+    Some(new_map.unwrap())
+}
+
+pub fn solve(map: &Map) -> Result<Option<Map>> {
+    let mut map = map.clone();
+    presolve(&mut map).context("Error while presolving.")?;
+    let mut stack: Vec<(Map, GuessIter)> = vec![];
+
+    let mut cur_map = map;
+
+    loop {
+        let changed = solve_step(&mut cur_map).context("Error while performing solve step.")?;
+        if cur_map.is_valid().is_err() {
+            cur_map = if let Some(next_map) = next_try(&mut stack) {
+                next_map
+            } else {
+                return Ok(None);
+            }
+        } else if cur_map.is_complete() {
+            return Ok(Some(cur_map));
+        } else if !changed {
+            let mut guess_iter = GuessIter::new(&cur_map);
+            if let Some((loc, tile)) = guess_iter.next(&cur_map) {
+                let mut map = cur_map.clone();
+                if tile {
+                    map.add_tent(loc).expect("Expected to add tent.");
+                } else {
+                    map.add_blocked(loc).expect("Expected to add blocked.");
+                }
+                stack.push((cur_map, guess_iter));
+                cur_map = map;
+            } else {
+                cur_map = if let Some(next_map) = next_try(&mut stack) {
+                    next_map
+                } else {
+                    return Ok(None);
+                }
+            }
+        }
+    }
 }
