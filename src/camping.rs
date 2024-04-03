@@ -1,4 +1,4 @@
 mod map;
 pub use map::{Map, MaybeTransposedMap, PlacementError, Tile, TransposedMap};
 mod solver;
-pub use solver::{pre_solve, solve_step};
+pub use solver::{presolve, solve, solve_step};

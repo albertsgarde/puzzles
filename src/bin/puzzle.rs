@@ -19,25 +19,15 @@ impl Camping {
         map.is_valid().unwrap();
 
         println!("{map}");
-        let mut map = map;
-        println!("Performing presolve...");
-        camping::pre_solve(&mut map).expect("Error while performing presolve.");
-        println!("{map}");
-        for i in 0.. {
-            println!("Step {i}...");
-            let changed =
-                camping::solve_step(&mut map).expect("Error while performing solve step.");
-            if !changed {
-                println!("No changes this step. Stopping.");
-                break;
-            }
-            println!("{map}");
-            if map.is_complete() {
-                println!("Map is complete. Stopping.");
-                let out_file = output_dir.join(&self.map).with_extension("txt");
-                write!(File::create(out_file)?, "{map}")?;
-                break;
-            }
+        let (solved_map, solved) = camping::solve(&map).expect("Error while solving.");
+        if solved {
+            println!("Solution:\n{solved_map}");
+            let mut file = File::create(output_dir.join(&self.map).with_extension("txt"))?;
+            write!(file, "{solved_map}")?;
+            println!("Solution found and written to file.");
+        } else {
+            println!("Failed to find solution:\n{solved_map}");
+            println!("No solution found.");
         }
         Ok(())
     }

@@ -176,7 +176,7 @@ pub fn fill_tents(map: &mut Map) -> Result<bool> {
     Ok(changed)
 }
 
-pub fn pre_solve(map: &mut Map) -> Result<()> {
+pub fn presolve(map: &mut Map) -> Result<()> {
     let old_map = map.clone();
     let mut changed = false;
     for loc in Location::grid_iter(map.dim()) {
@@ -216,4 +216,20 @@ pub fn solve_step(map: &mut Map) -> Result<bool> {
         ensure!(old_map != *map, "`changed` is true map but old_map == map.")
     }
     Ok(changed)
+}
+
+pub fn solve(map: &Map) -> Result<(Map, bool)> {
+    let mut map = map.clone();
+    presolve(&mut map).context("Error while presolving.")?;
+    for i in 0.. {
+        let changed = solve_step(&mut map)
+            .with_context(|| format!("Error while performing solve step {i}."))?;
+        if map.is_complete() {
+            return Ok((map, true));
+        }
+        if !changed {
+            return Ok((map, false));
+        }
+    }
+    unreachable!()
 }
