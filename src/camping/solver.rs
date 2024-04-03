@@ -1,6 +1,6 @@
 use crate::location::Location;
 
-use anyhow::{Context, Result};
+use anyhow::{ensure, Context, Result};
 
 use super::{map::MaybeTransposedMap, Map, Tile};
 fn block_row_if_finished<M>(map: &mut M, row_index: usize, requirement: usize) -> Result<bool>
@@ -176,10 +176,9 @@ pub fn fill_tents(map: &mut Map) -> Result<bool> {
     Ok(changed)
 }
 
-pub fn pre_solve(map: Map) -> Map {
+pub fn pre_solve(map: &mut Map) -> Result<()> {
     let old_map = map.clone();
     let mut changed = false;
-    let mut map = map;
     for loc in Location::grid_iter(map.dim()) {
         if map.get(loc) == Some(Tile::Free)
             && (map
@@ -194,27 +193,27 @@ pub fn pre_solve(map: Map) -> Map {
                     .any(|tile| tile == Tile::Tree))
             && map.get(loc).unwrap() == Tile::Free
         {
-            map.add_blocked(loc).expect("Failed to add blocked.");
+            map.add_blocked(loc).expect("Expected position to be free.");
             changed = true;
         }
     }
 
-    assert_eq!(changed, map != old_map);
-    map.is_valid().unwrap_or_else(|err| {
-        println!("{map}");
-        panic!("Invalid map: {}", err);
-    });
-    map
+    map.is_valid()
+        .with_context(|| format!("Invalid_map:\n{map}"))?;
+    if changed {
+        ensure!(*map != old_map, "`changed` is true but old_map == map.")
+    }
+    Ok(())
 }
 
-pub fn solve_step(map: Map) -> (Map, bool) {
-    let mut new_map = map.clone();
-    let changed = fill_tents(&mut new_map).unwrap();
+pub fn solve_step(map: &mut Map) -> Result<bool> {
+    let old_map = map.clone();
+    let changed = fill_tents(map).context("Error while filling tents.")?;
 
-    new_map.is_valid().unwrap_or_else(|err| {
-        println!("{new_map}");
-        panic!("Invalid map: {}", err);
-    });
-    assert_eq!(changed, new_map != map);
-    (new_map, changed)
+    map.is_valid()
+        .with_context(|| format!("Invalid_map:\n{map}"))?;
+    if changed {
+        ensure!(old_map != *map, "`changed` is true map but old_map == map.")
+    }
+    Ok(changed)
 }

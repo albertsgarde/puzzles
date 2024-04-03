@@ -19,13 +19,14 @@ impl Camping {
         map.is_valid().unwrap();
 
         println!("{map}");
+        let mut map = map;
         println!("Performing presolve...");
-        let mut map = camping::pre_solve(map);
+        camping::pre_solve(&mut map).expect("Error while performing presolve.");
         println!("{map}");
         for i in 0.. {
             println!("Step {i}...");
-            let (new_map, changed) = camping::solve_step(map);
-            map = new_map;
+            let changed =
+                camping::solve_step(&mut map).expect("Error while performing solve step.");
             if !changed {
                 println!("No changes this step. Stopping.");
                 break;
