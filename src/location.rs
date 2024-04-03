@@ -9,11 +9,11 @@ pub struct Location {
 }
 
 impl Location {
-    pub fn new(row: usize, col: usize) -> Self {
+    pub const fn new(row: usize, col: usize) -> Self {
         Self { row, col }
     }
 
-    pub fn transpose(self) -> Self {
+    pub const fn transpose(self) -> Self {
         Self {
             row: self.col,
             col: self.row,
@@ -46,7 +46,7 @@ impl Location {
         ]
     }
 
-    pub fn grid_iter(map_dim: (usize, usize)) -> GridIter {
+    pub const fn grid_iter(map_dim: (usize, usize)) -> GridIter {
         GridIter::new(map_dim)
     }
 }
@@ -69,7 +69,7 @@ pub struct GridIter {
 }
 
 impl GridIter {
-    pub fn new(map_dim: (usize, usize)) -> Self {
+    pub const fn new(map_dim: (usize, usize)) -> Self {
         Self { map_dim, cur: 0 }
     }
 }
