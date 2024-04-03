@@ -17,7 +17,7 @@ where
         let mut changed = false;
         for col_index in 0..map.width() {
             let loc = Location::new(row_index, col_index);
-            changed |= map.ref_add_blocked(loc).is_ok();
+            changed |= map.add_blocked(loc).is_ok();
         }
         Ok(changed)
     } else {
@@ -91,7 +91,7 @@ where
                 });
 
                 for block_loc in block_locs {
-                    changed |= map.ref_add_blocked(block_loc).is_ok();
+                    changed |= map.add_blocked(block_loc).is_ok();
                 }
 
                 // If the run is odd, we can place tents every other cell in the run,
@@ -107,15 +107,15 @@ where
                     for block_loc in block_locs.into_iter().flatten() {
                         // No need to match on the result since the below code will always set changed to true,
                         // and we don't care about the error.
-                        _ = map.ref_add_blocked(block_loc)
+                        _ = map.add_blocked(block_loc)
                     }
                     for (i, fill_col_index) in (run_start..run_end).enumerate() {
                         let fill_loc = Location::new(row_index, fill_col_index);
                         if i % 2 == 0 {
-                            map.ref_add_tent(fill_loc)
+                            map.add_tent(fill_loc)
                             .with_context(|| format!("Failed to add tent. Expected position to be free. Location: {fill_loc}  Row: {row_index}"))?;
                         } else {
-                            map.ref_add_blocked(fill_loc).with_context(|| format!("Failed to add blocked. Expected position to be free. Location: {fill_loc}  Row: {row_index}"))?;
+                            map.add_blocked(fill_loc).with_context(|| format!("Failed to add blocked. Expected position to be free. Location: {fill_loc}  Row: {row_index}"))?;
                         }
                     }
                     changed = true;
@@ -142,7 +142,7 @@ where
                         Some(Location::new(row_index + 1, prev_run_end)),
                     ];
                     for block_loc in block_locs.into_iter().flatten() {
-                        changed |= map.ref_add_blocked(block_loc).is_ok()
+                        changed |= map.add_blocked(block_loc).is_ok()
                     }
                 }
             }
@@ -194,7 +194,7 @@ pub fn pre_solve(map: Map) -> Map {
                     .any(|tile| tile == Tile::Tree))
             && map.get(loc).unwrap() == Tile::Free
         {
-            map.ref_add_blocked(loc).expect("Failed to add blocked.");
+            map.add_blocked(loc).expect("Failed to add blocked.");
             changed = true;
         }
     }

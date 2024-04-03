@@ -74,8 +74,8 @@ pub trait MaybeTransposedMap: Sized {
     fn neighbors(&self, location: Location) -> [Option<(Location, Tile)>; 8];
     fn is_valid(&self) -> Result<(), InvalidMapError>;
     fn is_complete(&self) -> bool;
-    fn ref_add_tent(&mut self, location: Location) -> Result<(), PlacementError>;
-    fn ref_add_blocked(&mut self, location: Location) -> Result<(), PlacementError>;
+    fn add_tent(&mut self, location: Location) -> Result<(), PlacementError>;
+    fn add_blocked(&mut self, location: Location) -> Result<(), PlacementError>;
     fn num_possible_row_tents(&self, row_index: usize) -> usize;
     fn num_possible_col_tents(&self, col_index: usize) -> usize;
 }
@@ -350,7 +350,7 @@ impl MaybeTransposedMap for Map {
         self.tiles().iter().all(|&t| t != Tile::Free) && self.is_valid().is_ok()
     }
 
-    fn ref_add_tent(&mut self, location: Location) -> Result<(), PlacementError> {
+    fn add_tent(&mut self, location: Location) -> Result<(), PlacementError> {
         if let Some(tile) = self.get(location) {
             if tile != Tile::Free {
                 Err(PlacementError::NotFree { location, tile })
@@ -363,7 +363,7 @@ impl MaybeTransposedMap for Map {
         }
     }
 
-    fn ref_add_blocked(&mut self, location: Location) -> Result<(), PlacementError> {
+    fn add_blocked(&mut self, location: Location) -> Result<(), PlacementError> {
         if let Some(tile) = self.get(location) {
             if tile != Tile::Free {
                 Err(PlacementError::NotFree { location, tile })
@@ -474,12 +474,12 @@ impl<'a> MaybeTransposedMap for TransposedMap<'a> {
         self.map.is_complete()
     }
 
-    fn ref_add_tent(&mut self, location: Location) -> Result<(), PlacementError> {
-        self.map.ref_add_tent(location.transpose())
+    fn add_tent(&mut self, location: Location) -> Result<(), PlacementError> {
+        self.map.add_tent(location.transpose())
     }
 
-    fn ref_add_blocked(&mut self, location: Location) -> Result<(), PlacementError> {
-        self.map.ref_add_blocked(location.transpose())
+    fn add_blocked(&mut self, location: Location) -> Result<(), PlacementError> {
+        self.map.add_blocked(location.transpose())
     }
 
     fn num_possible_row_tents(&self, row_index: usize) -> usize {
