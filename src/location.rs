@@ -46,9 +46,8 @@ impl Location {
         ]
     }
 
-    pub fn grid_iter(map_dim: (usize, usize)) -> impl Iterator<Item = Location> {
-        let (max_row, max_col) = map_dim;
-        (0..max_row).flat_map(move |row| (0..max_col).map(move |col| Location::new(row, col)))
+    pub fn grid_iter(map_dim: (usize, usize)) -> GridIter {
+        GridIter::new(map_dim)
     }
 }
 
@@ -61,5 +60,31 @@ impl From<(usize, usize)> for Location {
 impl Display for Location {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "({}, {})", self.row, self.col)
+    }
+}
+
+pub struct GridIter {
+    map_dim: (usize, usize),
+    cur: usize,
+}
+
+impl GridIter {
+    pub fn new(map_dim: (usize, usize)) -> Self {
+        Self { map_dim, cur: 0 }
+    }
+}
+
+impl Iterator for GridIter {
+    type Item = Location;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let (max_row, max_col) = self.map_dim;
+        if self.cur < max_row * max_col {
+            let loc = Location::new(self.cur / max_col, self.cur % max_col);
+            self.cur += 1;
+            Some(loc)
+        } else {
+            None
+        }
     }
 }
