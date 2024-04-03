@@ -1,6 +1,6 @@
 use std::{fmt::Display, fs, path};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use itertools::Itertools;
 use ndarray::{Array1, Array2, ArrayView2, Axis};
 use serde::{Deserialize, Serialize};
@@ -74,8 +74,6 @@ pub trait MaybeTransposedMap: Sized {
     fn neighbors(&self, location: Location) -> [Option<(Location, Tile)>; 8];
     fn is_valid(&self) -> Result<(), InvalidMapError>;
     fn is_complete(&self) -> bool;
-    fn add_tent(self, location: Location) -> Result<Self>;
-    fn add_blocked(self, location: Location) -> Result<Self>;
     fn ref_add_tent(&mut self, location: Location) -> Result<(), PlacementError>;
     fn ref_add_blocked(&mut self, location: Location) -> Result<(), PlacementError>;
     fn num_possible_row_tents(&self, row_index: usize) -> usize;
@@ -178,7 +176,7 @@ impl Map {
         Self::parse(string)
     }
 
-    pub fn transpose(self) -> TransposedMap {
+    pub fn transpose(&mut self) -> TransposedMap {
         TransposedMap { map: self }
     }
 }
@@ -352,17 +350,6 @@ impl MaybeTransposedMap for Map {
         self.tiles().iter().all(|&t| t != Tile::Free) && self.is_valid().is_ok()
     }
 
-    fn add_tent(mut self, location: Location) -> Result<Self> {
-        if !(self.in_bounds(location)) {
-            bail!("Cannot add tent to invalid location {location}. Location out of bounds.");
-        }
-        if self.get(location) != Some(Tile::Free) {
-            bail!("Cannot add tent to invalid location {location}. Location is not free.");
-        }
-        self.tiles[(location.row, location.col)] = Tile::Tent;
-        Ok(self)
-    }
-
     fn ref_add_tent(&mut self, location: Location) -> Result<(), PlacementError> {
         if let Some(tile) = self.get(location) {
             if tile != Tile::Free {
@@ -374,17 +361,6 @@ impl MaybeTransposedMap for Map {
         } else {
             Err(PlacementError::OutOfBounds(location))
         }
-    }
-
-    fn add_blocked(mut self, location: Location) -> Result<Self> {
-        if !(self.in_bounds(location)) {
-            bail!("Cannot add blocked to invalid location {location}. Location out of bounds.");
-        }
-        if self.get(location) != Some(Tile::Free) {
-            bail!("Cannot add blocked to invalid location {location}. Location is not free.");
-        }
-        self.tiles[(location.row, location.col)] = Tile::Blocked;
-        Ok(self)
     }
 
     fn ref_add_blocked(&mut self, location: Location) -> Result<(), PlacementError> {
@@ -430,19 +406,17 @@ impl MaybeTransposedMap for Map {
     }
 }
 
-pub struct TransposedMap {
-    map: Map,
+pub struct TransposedMap<'a> {
+    map: &'a mut Map,
 }
 
-impl TransposedMap {
-    pub fn untranspose(self) -> Map {
-        self.map
-    }
+impl<'a> TransposedMap<'a> {
+    pub fn untranspose(self) {}
 }
 
-impl MaybeTransposedMap for TransposedMap {
+impl<'a> MaybeTransposedMap for TransposedMap<'a> {
     fn map(&self) -> &Map {
-        &self.map
+        self.map
     }
 
     fn dim(&self) -> (usize, usize) {
@@ -500,20 +474,8 @@ impl MaybeTransposedMap for TransposedMap {
         self.map.is_complete()
     }
 
-    fn add_tent(self, location: Location) -> Result<Self> {
-        Ok(Self {
-            map: self.map.add_tent(location.transpose())?,
-        })
-    }
-
     fn ref_add_tent(&mut self, location: Location) -> Result<(), PlacementError> {
         self.map.ref_add_tent(location.transpose())
-    }
-
-    fn add_blocked(self, location: Location) -> Result<Self> {
-        Ok(Self {
-            map: self.map.add_blocked(location.transpose())?,
-        })
     }
 
     fn ref_add_blocked(&mut self, location: Location) -> Result<(), PlacementError> {

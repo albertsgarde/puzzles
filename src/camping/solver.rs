@@ -166,15 +166,14 @@ fn handle_rows(map: &mut impl MaybeTransposedMap) -> Result<bool> {
     Ok(changed)
 }
 
-pub fn fill_tents(map: Map) -> Result<(Map, bool)> {
+pub fn fill_tents(map: &mut Map) -> Result<bool> {
     let mut changed = false;
-    let mut new_map = map.clone();
-    changed |= handle_rows(&mut new_map).context("Error while filling tents in rows.")?;
-    let mut transposed_map = new_map.transpose();
-    changed |= handle_rows(&mut transposed_map).context("Error while filling tents in columns.")?;
-    new_map = transposed_map.untranspose();
-    assert_eq!(changed, new_map != map);
-    Ok((new_map, changed))
+    let old_map = map.clone();
+    changed |= handle_rows(map).context("Error while filling tents in rows.")?;
+    changed |=
+        handle_rows(&mut map.transpose()).context("Error while filling tents in columns.")?;
+    assert_eq!(changed, old_map != *map);
+    Ok(changed)
 }
 
 pub fn pre_solve(map: Map) -> Map {
@@ -209,13 +208,13 @@ pub fn pre_solve(map: Map) -> Map {
 }
 
 pub fn solve_step(map: Map) -> (Map, bool) {
-    let old_map = map.clone();
-    let (map, changed) = fill_tents(map).unwrap();
+    let mut new_map = map.clone();
+    let changed = fill_tents(&mut new_map).unwrap();
 
-    map.is_valid().unwrap_or_else(|err| {
-        println!("{map}");
+    new_map.is_valid().unwrap_or_else(|err| {
+        println!("{new_map}");
         panic!("Invalid map: {}", err);
     });
-    assert_eq!(changed, map != old_map);
-    (map, changed)
+    assert_eq!(changed, new_map != map);
+    (new_map, changed)
 }
