@@ -5,7 +5,7 @@ use std::{
     path::PathBuf,
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
 use puzzles::camping::{self, Map, MaybeTransposedMap};
 
@@ -23,18 +23,23 @@ impl Camping {
         let maps = if let Some(map_name) = self.map {
             vec![(
                 map_name.clone(),
-                Map::from_file(maps_dir.join(&map_name).with_extension("txt"))?,
+                Map::from_file(maps_dir.join(&map_name).with_extension("txt"))
+                    .with_context(|| format!("Failed to find map file for '{map_name}'"))?,
             )]
         } else {
-            fs::read_dir(maps_dir)?
+            fs::read_dir(maps_dir.as_path())
+                .with_context(|| format!("Unable to read dir '{maps_dir:?}'"))?
                 .flat_map(|entry| {
-                    let entry = match entry {
+                    let entry = match entry.context("Error while getting map directory entry.") {
                         Ok(entry) => entry,
-                        Err(err) => return Some(Err(err.into())),
+                        Err(err) => return Some(Err(err)),
                     };
-                    let file_type = match entry.file_type() {
+                    let file_type = match entry
+                        .file_type()
+                        .context("Error while getting map dir entry file type.")
+                    {
                         Ok(file_type) => file_type,
-                        Err(err) => return Some(Err(err.into())),
+                        Err(err) => return Some(Err(err)),
                     };
                     if file_type.is_file()
                         && entry
@@ -44,7 +49,9 @@ impl Camping {
                             .is_some_and(|ext| ext == "txt")
                     {
                         let map_name = entry.file_name().to_string_lossy().to_string();
-                        let map = match Map::from_file(entry.path()) {
+                        let map = match Map::from_file(entry.path()).with_context(|| {
+                            format!("Error creating map from file for '{map_name}'.")
+                        }) {
                             Ok(map) => map,
                             Err(err) => return Some(Err(err)),
                         };
@@ -65,7 +72,12 @@ impl Camping {
                             continue;
                         }
                     }
-                    let mut file = File::create(output_dir.join(&map_name).with_extension("txt"))?;
+                    fs::create_dir_all(&output_dir)
+                        .context("Failed to ensure existance of solution directory")?;
+                    let mut file = File::create(output_dir.join(&map_name).with_extension("txt"))
+                        .with_context(|| {
+                        format!("Failed to create solution file for map '{map_name}'")
+                    })?;
                     write!(file, "{solution}")?;
                     println!("Solution for '{map_name}' found and written to file.");
                 }

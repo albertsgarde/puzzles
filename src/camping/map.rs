@@ -172,7 +172,8 @@ impl Map {
 
     pub fn from_file(path: impl AsRef<path::Path>) -> Result<Self> {
         let path = path.as_ref();
-        let string = fs::read_to_string(path)?;
+        let string = fs::read_to_string(path)
+            .with_context(|| format!("Error reading map file from path {path:?}"))?;
         Self::parse(string)
     }
 
