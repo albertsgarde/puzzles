@@ -31,17 +31,24 @@ fn load_qqwing(postfix: impl AsRef<str>) -> Result<Vec<Board>> {
     load_grid_file(file_path)
 }
 
-pub fn solve_grid_group(grids: impl AsRef<[Board]>, descriptor: impl AsRef<str>) {
+pub fn solve_grid_group(grids: impl AsRef<[Board]>, descriptor: impl AsRef<str>) -> Result<()> {
     let grids = grids.as_ref();
     let descriptor = descriptor.as_ref();
     let num_grids = grids.len();
-    let num_solved = grids
-        .iter()
-        .filter(|grid| sudoku::solve(grid).validate().unwrap().finished())
-        .count();
+    let mut num_solved = 0;
+    for grid in grids {
+        let solution =
+            sudoku::solve(grid).with_context(|| format!("Error while solving board:\n{grid}"))?;
+        if solution.validate().with_context(||
+                format!("Error validating partial solution.\nPartial solution:\n{solution}Original board:\n{grid}")
+            )?.finished() {
+            num_solved += 1;
+        }
+    }
 
     let percentage = num_solved as f64 / num_grids as f64 * 100.0;
     println!("Solved {num_solved}/{num_grids} ({percentage:.0}%) {descriptor} grids.",);
+    Ok(())
 }
 #[derive(Clone, Debug, clap::Args)]
 pub struct Sudoku {}
@@ -63,13 +70,13 @@ impl Sudoku {
         let hardest_grids =
             load_grid_file(grid_dir.join("hardest.txt")).context("Error loading hardest grids")?;
 
-        solve_grid_group(qqwing_simple_grids, "simple");
-        solve_grid_group(qqwing_easy_grids, "easy");
-        solve_grid_group(qqwing_intermediate_grids, "intermediate");
-        solve_grid_group(qqwing_expert_grids, "expert");
-        solve_grid_group(easy50_grids, "easy50");
-        solve_grid_group(top95_grids, "top95");
-        solve_grid_group(hardest_grids, "hardest");
+        solve_grid_group(qqwing_simple_grids, "simple")?;
+        solve_grid_group(qqwing_easy_grids, "easy")?;
+        solve_grid_group(qqwing_intermediate_grids, "intermediate")?;
+        solve_grid_group(qqwing_expert_grids, "expert")?;
+        solve_grid_group(easy50_grids, "easy50")?;
+        solve_grid_group(top95_grids, "top95")?;
+        solve_grid_group(hardest_grids, "hardest")?;
 
         Ok(())
     }

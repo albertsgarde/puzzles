@@ -1,4 +1,5 @@
 use std::{
+    fmt::{self, Display, Formatter},
     num::NonZeroU8,
     ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, Not, Sub},
 };
@@ -59,6 +60,22 @@ impl ValueSet {
 
     pub fn len(self) -> usize {
         self.possibilities.count_ones()
+    }
+}
+
+impl Display for ValueSet {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "[")?;
+        let mut first = true;
+        for value in self.iter() {
+            if first {
+                first = false;
+            } else {
+                write!(f, ", ")?;
+            }
+            write!(f, "{}", value)?;
+        }
+        write!(f, "]")
     }
 }
 

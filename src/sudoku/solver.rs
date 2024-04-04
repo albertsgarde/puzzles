@@ -1,6 +1,4 @@
-use std::convert::identity;
-
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use itertools::Itertools;
 
 use super::{
@@ -29,6 +27,10 @@ impl Cell {
             Cell::Empty(value_set) => value_set,
             Cell::Value(value) => ValueSet::from_value(value),
         }
+    }
+
+    fn is_empty(self) -> bool {
+        matches!(self, Cell::Empty(_))
     }
 }
 
@@ -71,25 +73,41 @@ impl SolveState {
             .collect::<ValueSet>()
     }
 
+    fn restrict(cell: &mut Cell, values: ValueSet) -> Result<bool> {
+        match *cell {
+            Cell::Empty(mut value_set) => {
+                let start_value_set = value_set;
+                value_set &= values;
+                if value_set == ValueSet::NONE {
+                    bail!("No possible values left for cell.");
+                } else if let Some(single) = value_set.single() {
+                    *cell = Cell::Value(single);
+                    Ok(true)
+                } else {
+                    *cell = Cell::Empty(value_set);
+                    Ok(start_value_set != value_set)
+                }
+            }
+            Cell::Value(value) => {
+                if values.contains(value) {
+                    Ok(false)
+                } else {
+                    bail!("Cell value {value} is not possible according to value set {values}.");
+                }
+            }
+        }
+    }
+
     fn restrict_cells(&mut self) -> Result<bool> {
         let mut changed = false;
         for group in GROUPS {
             let free_values = self.free_values(group);
             for loc in group {
                 let cell = self.get_mut(loc);
-                if let Cell::Empty(mut value_set) = *cell {
-                    let start_value_set = value_set;
-                    value_set &= free_values;
-                    if value_set == ValueSet::NONE {
-                        bail!("No possible values left for cell at {loc}.");
-                    } else if let Some(single) = value_set.single() {
-                        *cell = Cell::Value(single);
-                        changed = true;
-                    } else {
-                        *cell = Cell::Empty(value_set);
-                        changed |= start_value_set != value_set;
-                    }
-                }
+                changed |= cell.is_empty()
+                    && Self::restrict(cell, free_values).with_context(|| {
+                        format!("Error while restricting cell {loc} to values {free_values}.")
+                    })?;
             }
             let free_values = self.free_values(group);
             for value in free_values.iter() {
@@ -109,8 +127,13 @@ impl SolveState {
     }
 }
 
-pub fn solve(board: &Board) -> Board {
+pub fn solve(board: &Board) -> Result<Board> {
     let mut solve_state = SolveState::from_board(board);
-    while solve_state.restrict_cells().is_ok_and(identity) {}
-    Board::from_solve_state(&solve_state)
+    while solve_state.restrict_cells().with_context(|| {
+        format!(
+            "Error while solving board. Partial solution:\n{}",
+            Board::from_solve_state(&solve_state)
+        )
+    })? {}
+    Ok(Board::from_solve_state(&solve_state))
 }
