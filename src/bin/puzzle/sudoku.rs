@@ -63,13 +63,13 @@ impl Sudoku {
         let hardest_grids =
             load_grid_file(grid_dir.join("hardest.txt")).context("Error loading hardest grids")?;
 
-        solve_grid_group(&qqwing_simple_grids, "simple");
-        solve_grid_group(&qqwing_easy_grids, "easy");
-        solve_grid_group(&qqwing_intermediate_grids, "intermediate");
-        solve_grid_group(&qqwing_expert_grids, "expert");
-        solve_grid_group(&easy50_grids, "easy50");
-        solve_grid_group(&top95_grids, "top95");
-        solve_grid_group(&hardest_grids, "hardest");
+        solve_grid_group(qqwing_simple_grids, "simple");
+        solve_grid_group(qqwing_easy_grids, "easy");
+        solve_grid_group(qqwing_intermediate_grids, "intermediate");
+        solve_grid_group(qqwing_expert_grids, "expert");
+        solve_grid_group(easy50_grids, "easy50");
+        solve_grid_group(top95_grids, "top95");
+        solve_grid_group(hardest_grids, "hardest");
 
         Ok(())
     }

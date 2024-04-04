@@ -1,60 +1,32 @@
 use array_concat::concat_arrays;
 
-use crate::location::Location;
+use super::board::Location;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Group {
-    pub locations: [Location; 9],
+    locations: [Location; 9],
 }
 
 impl Group {
-    const fn row(row_index: usize) -> Self {
+    pub const fn locations(self) -> [Location; 9] {
+        self.locations
+    }
+
+    pub const fn row(row_index: u8) -> Self {
         Self {
-            locations: [
-                Location::new(row_index, 0),
-                Location::new(row_index, 1),
-                Location::new(row_index, 2),
-                Location::new(row_index, 3),
-                Location::new(row_index, 4),
-                Location::new(row_index, 5),
-                Location::new(row_index, 6),
-                Location::new(row_index, 7),
-                Location::new(row_index, 8),
-            ],
+            locations: Location::row(row_index),
         }
     }
 
-    const fn col(col_index: usize) -> Self {
+    pub const fn col(col_index: u8) -> Self {
         Self {
-            locations: [
-                Location::new(0, col_index),
-                Location::new(1, col_index),
-                Location::new(2, col_index),
-                Location::new(3, col_index),
-                Location::new(4, col_index),
-                Location::new(5, col_index),
-                Location::new(6, col_index),
-                Location::new(7, col_index),
-                Location::new(8, col_index),
-            ],
+            locations: Location::col(col_index),
         }
     }
 
-    const fn grid(grid_index: usize) -> Self {
-        let start_row = (grid_index / 3) * 3;
-        let start_col = (grid_index % 3) * 3;
+    pub const fn block(grid_index: u8) -> Self {
         Self {
-            locations: [
-                Location::new(start_row, start_col),
-                Location::new(start_row, start_col + 1),
-                Location::new(start_row, start_col + 2),
-                Location::new(start_row + 1, start_col),
-                Location::new(start_row + 1, start_col + 1),
-                Location::new(start_row + 1, start_col + 2),
-                Location::new(start_row + 2, start_col),
-                Location::new(start_row + 2, start_col + 1),
-                Location::new(start_row + 2, start_col + 2),
-            ],
+            locations: Location::block(grid_index),
         }
     }
 }
@@ -93,15 +65,15 @@ pub const COLS: [Group; 9] = [
 ];
 
 pub const BLOCKS: [Group; 9] = [
-    Group::grid(0),
-    Group::grid(1),
-    Group::grid(2),
-    Group::grid(3),
-    Group::grid(4),
-    Group::grid(5),
-    Group::grid(6),
-    Group::grid(7),
-    Group::grid(8),
+    Group::block(0),
+    Group::block(1),
+    Group::block(2),
+    Group::block(3),
+    Group::block(4),
+    Group::block(5),
+    Group::block(6),
+    Group::block(7),
+    Group::block(8),
 ];
 
 pub const GROUPS: [Group; 27] = concat_arrays!(ROWS, COLS, BLOCKS);

@@ -2,12 +2,9 @@ use std::convert::identity;
 
 use anyhow::{bail, Result};
 use itertools::Itertools;
-use ndarray::{Array2, ArrayView2};
-
-use crate::location::Location;
 
 use super::{
-    board::{BoardCell, CellValue},
+    board::{BoardCell, CellValue, Location},
     group::{Group, GROUPS},
     value_set::ValueSet,
     Board,
@@ -37,33 +34,33 @@ impl Cell {
 
 #[derive(Clone, Debug)]
 pub struct SolveState {
-    cells: Array2<Cell>,
+    cells: [Cell; 81],
 }
 
 impl SolveState {
     fn from_board(board: &Board) -> Self {
         Self {
-            cells: board.grid().map(|&cell| match cell {
+            cells: board.cells().map(|cell| match cell {
                 BoardCell::Value(value) => Cell::Value(value),
                 BoardCell::Empty => Cell::Empty(ValueSet::ALL),
             }),
         }
     }
 
-    pub fn cells(&self) -> ArrayView2<Cell> {
-        self.cells.view()
+    pub fn cells(&self) -> &[Cell; 81] {
+        &self.cells
     }
 
     fn get(&self, location: Location) -> Cell {
-        self.cells[(location.row, location.col)]
+        self.cells[location.index()]
     }
 
     fn get_mut(&mut self, location: Location) -> &mut Cell {
-        &mut self.cells[(location.row, location.col)]
+        &mut self.cells[location.index()]
     }
 
     fn group_cells(&self, group: Group) -> [Cell; 9] {
-        group.locations.map(|location| self.get(location))
+        group.locations().map(|location| self.get(location))
     }
 
     fn free_values(&self, group: Group) -> ValueSet {

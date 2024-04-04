@@ -2,12 +2,84 @@ use anyhow::{bail, Context, Result};
 use thiserror::Error;
 use std::{ fmt::{Display, Formatter, Write}, num::NonZeroU8};
 
-use ndarray::{Array2, ArrayView2};
-
-use crate::location::Location;
 
 use super::{group, solver::{Cell, SolveState}, value_set::ValueSet};
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Location {
+    index: u8,
+}
+
+impl Location {
+    pub const fn new(row: u8, col: u8) -> Option<Self> {
+        if row < 9 && col < 9 {
+            Some(Self { index: row * 9 + col })
+        } else {
+            None
+        }
+    }
+
+    pub const fn row(row_index: u8) -> [Self; 9] {
+        [
+            Self {index: row_index * 9},
+            Self {index: row_index * 9 + 1},
+            Self {index: row_index * 9 + 2},
+            Self {index: row_index * 9 + 3},
+            Self {index: row_index * 9 + 4},
+            Self {index: row_index * 9 + 5},
+            Self {index: row_index * 9 + 6},
+            Self {index: row_index * 9 + 7},
+            Self {index: row_index * 9 + 8},
+        ]
+    }
+
+    pub const fn col(col_index: u8) -> [Self; 9] {
+        [
+            Self {index: col_index},
+            Self {index: col_index + 9},
+            Self {index: col_index + 18},
+            Self {index: col_index + 27},
+            Self {index: col_index + 36},
+            Self {index: col_index + 45},
+            Self {index: col_index + 54},
+            Self {index: col_index + 63},
+            Self {index: col_index + 72},
+        ]
+    }
+
+    pub const fn block(block_index: u8) -> [Self; 9] {
+        let start_row = (block_index / 3) * 3;
+        let start_col = (block_index % 3) * 3;
+        [
+            Self {index: start_row * 9 + start_col},
+            Self {index: start_row * 9 + start_col + 1},
+            Self {index: start_row * 9 + start_col + 2},
+            Self {index: (start_row + 1) * 9 + start_col},
+            Self {index: (start_row + 1) * 9 + start_col + 1},
+            Self {index: (start_row + 1) * 9 + start_col + 2},
+            Self {index: (start_row + 2) * 9 + start_col},
+            Self {index: (start_row + 2) * 9 + start_col + 1},
+            Self {index: (start_row + 2) * 9 + start_col + 2},
+        ]
+    }
+
+    pub const fn to_row_col(self) -> (u8, u8) {
+        let index = self.index;
+        (index / 9, index % 9)
+    }
+
+    pub const fn index(self) -> usize {
+        self.index as usize
+    }
+}
+
+impl Display for Location {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let (row, col) = self.to_row_col();
+        write!(f, "({}, {})", row, col)
+    }
+
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CellValue {
@@ -76,13 +148,13 @@ pub enum InvalidBoardError {
 
 #[derive(Clone, Debug)]
 pub struct Board {
-    cells: Array2<BoardCell>,
+    cells: [BoardCell; 81],
 }
 
 impl Board {
     pub fn from_solve_state(solve_state: &SolveState) -> Self {
         Self {
-            cells: solve_state.cells().map(|&cell| match cell {
+            cells: solve_state.cells().map(|cell| match cell {
                 Cell::Value(value) => BoardCell::Value(value),
                 Cell::Empty(_) => BoardCell::Empty,
             }),
@@ -111,7 +183,7 @@ impl Board {
                 })
             })
             .collect::<Result<Vec<_>>>()?;
-        let cells = Array2::from_shape_vec((9, 9), cells).unwrap();
+        let cells: [BoardCell; 81] = cells.try_into().unwrap();
         Ok(Self { cells })
     }
 
@@ -139,7 +211,7 @@ impl Board {
                 })
             }))
         }).flatten().collect::<Result<_>>()?;
-        let cells = Array2::from_shape_vec((9, 9), cells).unwrap();
+        let cells: [BoardCell; 81] = cells.try_into().unwrap();
         Ok(Self { cells })
     }
 
@@ -151,7 +223,7 @@ impl Board {
     }
 
     pub fn format_compact_grid(&self, f: &mut Formatter<'_>, empty_char: char) -> std::fmt::Result {
-        for row in self.cells.rows() {
+        for row in self.cells.chunks_exact(9) {
             for &cell in row {
                 write!(f, "{}", cell.to_char(empty_char))?;
             }
@@ -161,7 +233,7 @@ impl Board {
     }
 
     pub fn format_pretty_grid(&self, f: &mut impl Write, empty_char: char) -> std::fmt::Result {
-        for (row_index, row) in self.cells.rows().into_iter().enumerate() {
+        for (row_index, row) in self.cells.chunks_exact(9).enumerate() {
             if row_index % 3 == 0 {
                 writeln!(f, "+-------+-------+-------+")?;
             }
@@ -183,19 +255,19 @@ impl Board {
         s
     }
 
-    pub fn get(&self, loc: Location) -> Option<BoardCell> {
-        self.cells.get((loc.row, loc.col)).copied()
+    pub fn cells(&self) -> &[BoardCell; 81] {
+        &self.cells
     }
 
-    pub fn grid(&self) -> ArrayView2<BoardCell> {
-        self.cells.view()
+    pub fn get(&self, loc: Location) -> BoardCell {
+        self.cells[loc.index()]
     }
 
     pub fn validate(&self) -> Result<&Self, InvalidBoardError> {
         // Validate rows
         for (row_index, row) in group::ROWS.into_iter().enumerate() {
             let mut values = ValueSet::NONE;
-            for cell in row.into_iter().map(|location| self.get(location).unwrap()) {
+            for cell in row.into_iter().map(|location| self.get(location)) {
                 if let BoardCell::Value(value) = cell {
                     if values.contains(value) {
                         return Err(InvalidBoardError::DuplicateRowValue { row_index, value });
@@ -208,7 +280,7 @@ impl Board {
         // Validate columns
         for (col_index, col) in group::COLS.into_iter().enumerate() {
             let mut values = ValueSet::NONE;
-            for cell in col.into_iter().map(|location| self.get(location).unwrap()) {
+            for cell in col.into_iter().map(|location| self.get(location)) {
                 if let BoardCell::Value(value) = cell {
                     if values.contains(value) {
                         return Err(InvalidBoardError::DuplicateColumnValue { col_index, value });
@@ -221,7 +293,7 @@ impl Board {
         // Validate blocks
         for (block_index, block) in group::BLOCKS.into_iter().enumerate() {
             let mut values = ValueSet::NONE;
-            for cell in block.into_iter().map(|location| self.get(location).unwrap()) {
+            for cell in block.into_iter().map(|location| self.get(location)) {
                 if let BoardCell::Value(value) = cell {
                     if values.contains(value) {
                         return Err(InvalidBoardError::DuplicateBlockValue { block_index, value });
