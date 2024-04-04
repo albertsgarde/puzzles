@@ -1,3 +1,5 @@
+use array_concat::concat_arrays;
+
 use crate::location::Location;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -66,36 +68,40 @@ impl IntoIterator for Group {
     }
 }
 
-pub const fn groups() -> [Group; 27] {
-    [
-        Group::row(0),
-        Group::row(1),
-        Group::row(2),
-        Group::row(3),
-        Group::row(4),
-        Group::row(5),
-        Group::row(6),
-        Group::row(7),
-        Group::row(8),
-        Group::col(0),
-        Group::col(1),
-        Group::col(2),
-        Group::col(3),
-        Group::col(4),
-        Group::col(5),
-        Group::col(6),
-        Group::col(7),
-        Group::col(8),
-        Group::grid(0),
-        Group::grid(1),
-        Group::grid(2),
-        Group::grid(3),
-        Group::grid(4),
-        Group::grid(5),
-        Group::grid(6),
-        Group::grid(7),
-        Group::grid(8),
-    ]
-}
+pub const ROWS: [Group; 9] = [
+    Group::row(0),
+    Group::row(1),
+    Group::row(2),
+    Group::row(3),
+    Group::row(4),
+    Group::row(5),
+    Group::row(6),
+    Group::row(7),
+    Group::row(8),
+];
 
-pub const GROUPS: [Group; 27] = groups();
+pub const COLS: [Group; 9] = [
+    Group::col(0),
+    Group::col(1),
+    Group::col(2),
+    Group::col(3),
+    Group::col(4),
+    Group::col(5),
+    Group::col(6),
+    Group::col(7),
+    Group::col(8),
+];
+
+pub const BLOCKS: [Group; 9] = [
+    Group::grid(0),
+    Group::grid(1),
+    Group::grid(2),
+    Group::grid(3),
+    Group::grid(4),
+    Group::grid(5),
+    Group::grid(6),
+    Group::grid(7),
+    Group::grid(8),
+];
+
+pub const GROUPS: [Group; 27] = concat_arrays!(ROWS, COLS, BLOCKS);

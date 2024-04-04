@@ -8,6 +8,7 @@ default-run = "puzzle"
 
 [dependencies]
 anyhow = "1.0.76"
+array-concat = "0.5.2"
 bitvec = "1.0.1"
 clap = { version = "4.4.11", features = ["derive"] }
 itertools = "0.12.0"

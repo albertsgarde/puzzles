@@ -37,7 +37,7 @@ pub fn solve_grid_group(grids: impl AsRef<[Board]>, descriptor: impl AsRef<str>)
     let num_grids = grids.len();
     let num_solved = grids
         .iter()
-        .filter(|grid| sudoku::solve(grid).finished())
+        .filter(|grid| sudoku::solve(grid).validate().unwrap().finished())
         .count();
 
     let percentage = num_solved as f64 / num_grids as f64 * 100.0;

@@ -1,9 +1,12 @@
 use anyhow::{bail, Context, Result};
+use thiserror::Error;
 use std::{ fmt::{Display, Formatter, Write}, num::NonZeroU8};
 
 use ndarray::{Array2, ArrayView2};
 
-use super::solver::{Cell, SolveState};
+use crate::location::Location;
+
+use super::{group, solver::{Cell, SolveState}, value_set::ValueSet};
 
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -39,6 +42,12 @@ impl From<CellValue> for usize {
     }
 }
 
+impl Display for CellValue {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_char())
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BoardCell {
     Empty,
@@ -52,6 +61,17 @@ impl BoardCell {
             BoardCell::Value(value) => value.to_char(),
         }
     }
+}
+
+#[allow(clippy::enum_variant_names)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Error)]
+pub enum InvalidBoardError {
+    #[error("Row {row_index} has duplicate value {value}")]
+    DuplicateRowValue { row_index: usize, value: CellValue },
+    #[error("Column {col_index} has duplicate value {value}")]
+    DuplicateColumnValue { col_index: usize, value: CellValue },
+    #[error("Block {block_index} has duplicate value {value}")]
+    DuplicateBlockValue { block_index: usize, value: CellValue },
 }
 
 #[derive(Clone, Debug)]
@@ -163,9 +183,55 @@ impl Board {
         s
     }
 
+    pub fn get(&self, loc: Location) -> Option<BoardCell> {
+        self.cells.get((loc.row, loc.col)).copied()
+    }
+
     pub fn grid(&self) -> ArrayView2<BoardCell> {
         self.cells.view()
-    
+    }
+
+    pub fn validate(&self) -> Result<&Self, InvalidBoardError> {
+        // Validate rows
+        for (row_index, row) in group::ROWS.into_iter().enumerate() {
+            let mut values = ValueSet::NONE;
+            for cell in row.into_iter().map(|location| self.get(location).unwrap()) {
+                if let BoardCell::Value(value) = cell {
+                    if values.contains(value) {
+                        return Err(InvalidBoardError::DuplicateRowValue { row_index, value });
+                    }
+                    values |= ValueSet::from_value(value);
+                }
+            }
+        }
+
+        // Validate columns
+        for (col_index, col) in group::COLS.into_iter().enumerate() {
+            let mut values = ValueSet::NONE;
+            for cell in col.into_iter().map(|location| self.get(location).unwrap()) {
+                if let BoardCell::Value(value) = cell {
+                    if values.contains(value) {
+                        return Err(InvalidBoardError::DuplicateColumnValue { col_index, value });
+                    }
+                    values |= ValueSet::from_value(value);
+                }
+            }
+        }
+
+        // Validate blocks
+        for (block_index, block) in group::BLOCKS.into_iter().enumerate() {
+            let mut values = ValueSet::NONE;
+            for cell in block.into_iter().map(|location| self.get(location).unwrap()) {
+                if let BoardCell::Value(value) = cell {
+                    if values.contains(value) {
+                        return Err(InvalidBoardError::DuplicateBlockValue { block_index, value });
+                    }
+                    values |= ValueSet::from_value(value);
+                }
+            }
+        }
+
+        Ok(self)
     }
 
     pub fn finished(&self) -> bool {
