@@ -215,14 +215,14 @@ impl Board {
         Ok(Self { cells })
     }
 
-    pub fn format_line(&self, f: &mut Formatter<'_>, empty_char: char) -> std::fmt::Result {
+    pub fn format_line(&self, f: &mut impl Write, empty_char: char) -> std::fmt::Result {
         for &cell in self.cells.iter() {
             write!(f, "{}", cell.to_char(empty_char))?;
         }
         Ok(())
     }
 
-    pub fn format_compact_grid(&self, f: &mut Formatter<'_>, empty_char: char) -> std::fmt::Result {
+    pub fn format_compact_grid(&self, f: &mut impl Write, empty_char: char) -> std::fmt::Result {
         for row in self.cells.chunks_exact(9) {
             for &cell in row {
                 write!(f, "{}", cell.to_char(empty_char))?;
@@ -249,10 +249,10 @@ impl Board {
         Ok(())
     }
 
-    pub fn to_pretty_string<F>(&self, format: F, empty_char: char) -> String where F: FnOnce(&Self, &mut String, char)-> std::fmt::Result {
+    pub fn to_pretty_string<F>(&self, format: F, empty_char: char) -> Result<String, std::fmt::Error> where F: FnOnce(&Self, &mut String, char) -> std::fmt::Result {
         let mut s = String::new();
-        format(self, &mut s, empty_char).unwrap();
-        s
+        format(self, &mut s, empty_char)?;
+        Ok(s)
     }
 
     pub fn cells(&self) -> &[BoardCell; 81] {
