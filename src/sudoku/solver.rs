@@ -128,13 +128,56 @@ impl SolveState {
         }
         Ok(changed)
     }
+    fn ghosts(&mut self) -> Result<bool> {
+        let mut ghosts: Vec<(CellValue, LocationSet)> = vec![];
+
+        for group in GROUPS {
+            for value in ValueSet::ALL.iter() {
+                let locations = group
+                    .into_iter()
+                    .filter(|&loc| self.get(loc).possible_values().contains(value))
+                    .collect::<LocationSet>();
+                if locations.count() == 2 || locations.count() == 3 {
+                    for loc in locations {
+                        assert!(self.get(loc).is_empty(), "Location {loc} is not empty.")
+                    }
+                    ghosts.push((value, locations));
+                }
+            }
+        }
+
+        let mut changed = false;
+        for group in GROUPS {
+            for &(ghost_value, locations) in ghosts.iter() {
+                if group.is_superset(locations) {
+                    for loc in group - locations {
+                        let cell = self.get_mut(loc);
+                        if let Some(cell_value) = cell.value() {
+                            assert_ne!(cell_value, ghost_value)
+                        } else {
+                            changed |= Self::restrict(cell, !ValueSet::from_value(ghost_value))
+                                .with_context(|| format!("Error while restricting cell {loc} with ghost of value {ghost_value}."))?;
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(changed)
+    }
 }
 
 pub fn solve(board: &Board) -> Result<Board> {
     let mut solve_state = SolveState::from_board(board);
+
     while solve_state.restrict_cells().with_context(|| {
         format!(
-            "Error while solving board. Partial solution:\n{}",
+            "Error during restrict cells step. Partial solution:\n{}",
+            Board::from_solve_state(&solve_state)
+        )
+    })? || solve_state.ghosts().with_context(|| {
+        format!(
+            "Error during ghosts step. Partial solution:\n{}",
             Board::from_solve_state(&solve_state)
         )
     })? {}
