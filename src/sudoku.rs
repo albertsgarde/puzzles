@@ -1,5 +1,4 @@
 mod board;
-mod group;
 mod location_set;
 mod solver;
 mod value_set;

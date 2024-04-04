@@ -4,6 +4,7 @@ use std::{
     ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, Not, Sub},
 };
 
+use array_concat::concat_arrays;
 use bitvec::{array::BitArray, bitarr, order::Lsb0};
 
 use super::board::Location;
@@ -208,6 +209,44 @@ impl BitAndAssign for LocationSet {
         self.set &= rhs.set;
     }
 }
+
+pub const ROWS: [LocationSet; 9] = [
+    LocationSet::row(0),
+    LocationSet::row(1),
+    LocationSet::row(2),
+    LocationSet::row(3),
+    LocationSet::row(4),
+    LocationSet::row(5),
+    LocationSet::row(6),
+    LocationSet::row(7),
+    LocationSet::row(8),
+];
+
+pub const COLS: [LocationSet; 9] = [
+    LocationSet::col(0),
+    LocationSet::col(1),
+    LocationSet::col(2),
+    LocationSet::col(3),
+    LocationSet::col(4),
+    LocationSet::col(5),
+    LocationSet::col(6),
+    LocationSet::col(7),
+    LocationSet::col(8),
+];
+
+pub const BLOCKS: [LocationSet; 9] = [
+    LocationSet::block(0),
+    LocationSet::block(1),
+    LocationSet::block(2),
+    LocationSet::block(3),
+    LocationSet::block(4),
+    LocationSet::block(5),
+    LocationSet::block(6),
+    LocationSet::block(7),
+    LocationSet::block(8),
+];
+
+pub const GROUPS: [LocationSet; 27] = concat_arrays!(ROWS, COLS, BLOCKS);
 
 #[cfg(test)]
 mod tests {

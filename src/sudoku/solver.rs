@@ -1,9 +1,11 @@
 use anyhow::{bail, Context, Result};
 use itertools::Itertools;
 
+use crate::sudoku::location_set::LocationSet;
+
 use super::{
     board::{BoardCell, CellValue, Location},
-    group::{Group, GROUPS},
+    location_set::GROUPS,
     value_set::ValueSet,
     Board,
 };
@@ -61,23 +63,10 @@ impl SolveState {
         &mut self.cells[location.index()]
     }
 
-    fn group_cells(&self, group: Group) -> impl Iterator<Item = Cell> + '_ {
-        group.into_iter().map(|location| self.get(location))
-    }
-
-    fn free_values(&self, group: Group) -> ValueSet {
-        let set_set = group
+    fn free_values(&self, locations: LocationSet) -> ValueSet {
+        !locations
             .into_iter()
-            .filter_map(|loc| self.get(loc).value())
-            .collect::<ValueSet>();
-        let arr_set = group
-            .into_iter()
-            .filter_map(|loc| self.get(loc).value())
-            .collect::<ValueSet>();
-        assert_eq!(set_set, arr_set, "Value sets should be equal.");
-        !self
-            .group_cells(group)
-            .flat_map(Cell::value)
+            .filter_map(|location| Cell::value(self.get(location)))
             .collect::<ValueSet>()
     }
 

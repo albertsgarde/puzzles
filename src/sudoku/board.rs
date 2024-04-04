@@ -3,7 +3,7 @@ use thiserror::Error;
 use std::{ fmt::{Display, Formatter, Write}, num::NonZeroU8};
 
 
-use super::{group, solver::{Cell, SolveState}, value_set::ValueSet};
+use super::{location_set, solver::{Cell, SolveState}, value_set::ValueSet};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Location {
@@ -273,7 +273,7 @@ impl Board {
 
     pub fn validate(&self) -> Result<&Self, InvalidBoardError> {
         // Validate rows
-        for (row_index, row) in group::ROWS.into_iter().enumerate() {
+        for (row_index, row) in location_set::ROWS.into_iter().enumerate() {
             let mut values = ValueSet::NONE;
             for cell in row.into_iter().map(|location| self.get(location)) {
                 if let BoardCell::Value(value) = cell {
@@ -286,7 +286,7 @@ impl Board {
         }
 
         // Validate columns
-        for (col_index, col) in group::COLS.into_iter().enumerate() {
+        for (col_index, col) in location_set::COLS.into_iter().enumerate() {
             let mut values = ValueSet::NONE;
             for cell in col.into_iter().map(|location| self.get(location)) {
                 if let BoardCell::Value(value) = cell {
@@ -299,7 +299,7 @@ impl Board {
         }
 
         // Validate blocks
-        for (block_index, block) in group::BLOCKS.into_iter().enumerate() {
+        for (block_index, block) in location_set::BLOCKS.into_iter().enumerate() {
             let mut values = ValueSet::NONE;
             for cell in block.into_iter().map(|location| self.get(location)) {
                 if let BoardCell::Value(value) = cell {
