@@ -34,7 +34,7 @@ impl Cell {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SolveState {
     cells: [Cell; 81],
 }
@@ -61,14 +61,22 @@ impl SolveState {
         &mut self.cells[location.index()]
     }
 
-    fn group_cells(&self, group: Group) -> [Cell; 9] {
-        group.locations().map(|location| self.get(location))
+    fn group_cells(&self, group: Group) -> impl Iterator<Item = Cell> + '_ {
+        group.into_iter().map(|location| self.get(location))
     }
 
     fn free_values(&self, group: Group) -> ValueSet {
+        let set_set = group
+            .into_iter()
+            .filter_map(|loc| self.get(loc).value())
+            .collect::<ValueSet>();
+        let arr_set = group
+            .into_iter()
+            .filter_map(|loc| self.get(loc).value())
+            .collect::<ValueSet>();
+        assert_eq!(set_set, arr_set, "Value sets should be equal.");
         !self
             .group_cells(group)
-            .into_iter()
             .flat_map(Cell::value)
             .collect::<ValueSet>()
     }
@@ -100,6 +108,7 @@ impl SolveState {
 
     fn restrict_cells(&mut self) -> Result<bool> {
         let mut changed = false;
+        let start_state = self.clone();
         for group in GROUPS {
             let free_values = self.free_values(group);
             for loc in group {
@@ -122,6 +131,11 @@ impl SolveState {
                     changed = true;
                 }
             }
+        }
+        if changed {
+            assert_ne!(self, &start_state, "State should have changed.");
+        } else {
+            assert_eq!(self, &start_state, "State should not have changed.");
         }
         Ok(changed)
     }

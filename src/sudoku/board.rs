@@ -19,6 +19,14 @@ impl Location {
         }
     }
 
+    pub const fn from_index(index: usize) -> Option<Self> {
+        if index < 81 {
+            Some(Self { index: index as u8 })
+        } else {
+            None
+        }
+    }
+
     pub const fn row(row_index: u8) -> [Self; 9] {
         [
             Self {index: row_index * 9},

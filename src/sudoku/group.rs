@@ -1,39 +1,38 @@
 use array_concat::concat_arrays;
 
-use super::board::Location;
+use super::{
+    board::Location,
+    location_set::{LocationSet, LocationSetIter},
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Group {
-    locations: [Location; 9],
+    locations: LocationSet,
 }
 
 impl Group {
-    pub const fn locations(self) -> [Location; 9] {
-        self.locations
-    }
-
-    pub const fn row(row_index: u8) -> Self {
+    const fn row(row_index: u8) -> Self {
         Self {
-            locations: Location::row(row_index),
+            locations: LocationSet::row(row_index),
         }
     }
 
-    pub const fn col(col_index: u8) -> Self {
+    const fn col(col_index: u8) -> Self {
         Self {
-            locations: Location::col(col_index),
+            locations: LocationSet::col(col_index),
         }
     }
 
-    pub const fn block(grid_index: u8) -> Self {
+    const fn block(grid_index: u8) -> Self {
         Self {
-            locations: Location::block(grid_index),
+            locations: LocationSet::block(grid_index),
         }
     }
 }
 
 impl IntoIterator for Group {
     type Item = Location;
-    type IntoIter = std::array::IntoIter<Location, 9>;
+    type IntoIter = LocationSetIter;
 
     fn into_iter(self) -> Self::IntoIter {
         self.locations.into_iter()
