@@ -2,6 +2,7 @@ use std::{
     fs::{self, File},
     io::Write,
     path::{Path, PathBuf},
+    time::Instant,
 };
 
 use anyhow::{Context, Result};
@@ -44,6 +45,7 @@ impl Sudoku {
             "easy50",
             "top95",
             "hardest",
+            "insane",
         ];
 
         let grid_dir = data_dir().join("grids");
@@ -63,6 +65,7 @@ impl Sudoku {
             format!("Failed to create solutions directory '{solutions_dir:?}'.")
         })?;
 
+        let start_time = Instant::now();
         let mut num_total_steps = 0;
         for (name, grids) in sets {
             let solution_path = solutions_dir.join(name).with_extension("txt");
@@ -93,7 +96,13 @@ impl Sudoku {
             let percentage = num_solved as f64 / num_grids as f64 * 100.0;
             println!("Solved {num_solved}/{num_grids} ({percentage:.0}%) {name} grids with {num_set_steps} steps.",);
         }
+        let elapsed = start_time.elapsed();
         println!("{num_total_steps} total steps used on successful solutions");
+        println!(
+            "Total time: {}s {}ms",
+            elapsed.as_secs(),
+            elapsed.subsec_millis()
+        );
 
         Ok(())
     }
