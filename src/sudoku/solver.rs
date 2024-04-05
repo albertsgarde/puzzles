@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, ensure, Context, Result};
 use itertools::Itertools;
 
 use crate::sudoku::location_set::LocationSet;
@@ -139,7 +139,7 @@ impl SolveState {
                     .collect::<LocationSet>();
                 if locations.count() == 2 || locations.count() == 3 {
                     for loc in locations {
-                        assert!(self.get(loc).is_empty(), "Location {loc} is not empty.")
+                        ensure!(self.get(loc).is_empty(), "Location {loc} is not empty.")
                     }
                     ghosts.push((value, locations));
                 }
@@ -152,9 +152,7 @@ impl SolveState {
                 if group.is_superset(locations) {
                     for loc in group - locations {
                         let cell = self.get_mut(loc);
-                        if let Some(cell_value) = cell.value() {
-                            assert_ne!(cell_value, ghost_value)
-                        } else {
+                        if cell.is_empty()  {
                             changed |= Self::restrict(cell, !ValueSet::from_value(ghost_value))
                                 .with_context(|| format!("Error while restricting cell {loc} with ghost of value {ghost_value}."))?;
                         }
@@ -165,21 +163,80 @@ impl SolveState {
 
         Ok(changed)
     }
+
+    /// Generates a guess for the current state.
+    /// A guess is a location and a value that is possible for that location.
+    /// The location is the one with the fewest possible values left.
+    ///
+    /// Will return `None` if there are no empty cells left, in which case the board is solved.
+    fn guess(&self) -> Option<(Location, CellValue)> {
+        let location = self
+            .cells
+            .iter()
+            .enumerate()
+            .filter_map(|(index, cell)| match cell {
+                Cell::Empty(value_set) => Some((index, value_set.len())),
+                Cell::Value(_) => None,
+            })
+            .min_by_key(|(_, len)| *len)
+            .map(|(index, _)| Location::from_index(index).unwrap())?;
+        let value = self.get(location).possible_values().iter().next().unwrap();
+        Some((location, value))
+    }
 }
 
-pub fn solve(board: &Board) -> Result<Board> {
-    let mut solve_state = SolveState::from_board(board);
-
+fn try_solve_guess(solve_state: &mut SolveState) -> Result<u32> {
+    let mut steps = 0;
     while solve_state.restrict_cells().with_context(|| {
         format!(
             "Error during restrict cells step. Partial solution:\n{}",
-            Board::from_solve_state(&solve_state)
+            Board::from_solve_state(solve_state)
         )
     })? || solve_state.ghosts().with_context(|| {
         format!(
             "Error during ghosts step. Partial solution:\n{}",
-            Board::from_solve_state(&solve_state)
+            Board::from_solve_state(solve_state)
         )
-    })? {}
-    Ok(Board::from_solve_state(&solve_state))
+    })? {
+        steps += 1;
+    }
+    steps += 1;
+    Ok(steps)
+}
+
+pub fn solve(board: &Board) -> Result<Board> {
+    let mut stack: Vec<(SolveState, Location, CellValue)> = vec![];
+
+    let mut cur_state = SolveState::from_board(board);
+    let mut steps = 0;
+
+    while steps < 1000 {
+        match try_solve_guess(&mut cur_state) {
+            Ok(new_steps) => steps += new_steps,
+            Err(error) => {
+                if let Some((prev_state, guess_loc, guess_value)) = stack.pop() {
+                    cur_state = prev_state;
+                    let guess_cell = cur_state.get_mut(guess_loc);
+                    SolveState::restrict(guess_cell, !ValueSet::from_value(guess_value))
+                            .with_context(|| 
+                                format!("Error updating on faulty guess at {guess_loc} with value {guess_value}.")
+                            )?;
+                    continue;
+                } else {
+                    Err(error)?;
+                }
+            }
+        }
+
+        if let Some((guess_loc, guess_value)) = cur_state.guess() {
+            let mut guess_state = cur_state.clone();
+            let guess_cell = guess_state.get_mut(guess_loc);
+            *guess_cell = Cell::Value(guess_value);
+            stack.push((cur_state, guess_loc, guess_value));
+            cur_state = guess_state;
+        } else {
+            return Ok(Board::from_solve_state(&cur_state));
+        }
+    }
+    Ok(Board::from_solve_state(stack.first().map(|(state, _, _)| state).unwrap_or(&cur_state)))
 }
