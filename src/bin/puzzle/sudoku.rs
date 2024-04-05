@@ -63,13 +63,15 @@ impl Sudoku {
             format!("Failed to create solutions directory '{solutions_dir:?}'.")
         })?;
 
+        let mut num_total_steps = 0;
         for (name, grids) in sets {
             let solution_path = solutions_dir.join(name).with_extension("txt");
             let mut solution_file = File::create(&solution_path)
                 .with_context(|| format!("Failed to create solution file '{solution_path:?}'."))?;
             let mut num_solved = 0;
+            let mut num_set_steps = 0;
             for (index, grid) in grids.iter().enumerate() {
-                let solution = sudoku::solve(grid)
+                let (solution, num_steps) = sudoku::solve(grid)
                     .with_context(|| format!("Error while solving grid {index} in set {name}"))?;
                 let solved = solution.validate().with_context(|| {
                     format!(
@@ -78,6 +80,7 @@ impl Sudoku {
                 })?.finished();
                 if solved {
                     num_solved += 1;
+                    num_set_steps += num_steps;
                 }
                 let solution_line = solution.to_pretty_string(Board::format_line, '.')?;
                 writeln!(solution_file, "{solution_line},{solved}").with_context(|| {
@@ -85,10 +88,12 @@ impl Sudoku {
                 })?;
             }
             let num_grids = grids.len();
+            num_total_steps += num_set_steps;
 
             let percentage = num_solved as f64 / num_grids as f64 * 100.0;
-            println!("Solved {num_solved}/{num_grids} ({percentage:.0}%) {name} grids.",);
+            println!("Solved {num_solved}/{num_grids} ({percentage:.0}%) {name} grids with {num_set_steps} steps.",);
         }
+        println!("{num_total_steps} total steps used on successful solutions");
 
         Ok(())
     }

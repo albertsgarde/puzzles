@@ -204,15 +204,16 @@ fn try_solve_guess(solve_state: &mut SolveState) -> Result<u32> {
     Ok(steps)
 }
 
-pub fn solve(board: &Board) -> Result<Board> {
+
+pub fn solve(board: &Board) -> Result<(Board, u32)> {
     let mut stack: Vec<(SolveState, Location, CellValue)> = vec![];
 
     let mut cur_state = SolveState::from_board(board);
-    let mut steps = 0;
+    let mut num_steps = 0;
 
-    while steps < 1000 {
+    while num_steps < 1000 {
         match try_solve_guess(&mut cur_state) {
-            Ok(new_steps) => steps += new_steps,
+            Ok(new_steps) => num_steps += new_steps,
             Err(error) => {
                 if let Some((prev_state, guess_loc, guess_value)) = stack.pop() {
                     cur_state = prev_state;
@@ -235,8 +236,8 @@ pub fn solve(board: &Board) -> Result<Board> {
             stack.push((cur_state, guess_loc, guess_value));
             cur_state = guess_state;
         } else {
-            return Ok(Board::from_solve_state(&cur_state));
+            return Ok((Board::from_solve_state(&cur_state), num_steps));
         }
     }
-    Ok(Board::from_solve_state(stack.first().map(|(state, _, _)| state).unwrap_or(&cur_state)))
+    Ok((Board::from_solve_state(stack.first().map(|(state, _, _)| state).unwrap_or(&cur_state)), num_steps))
 }
