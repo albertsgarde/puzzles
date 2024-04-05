@@ -70,6 +70,23 @@ impl SolveState {
             .collect::<ValueSet>()
     }
 
+    fn validate(&self) -> Result<()> {
+        for (group_id, &group) in GROUPS.iter().enumerate() {
+            let mut values = ValueSet::NONE;
+            for loc in group {
+                let cell = self.get(loc);
+                if let Some(value) = cell.value() {
+                    if values.contains(value) {
+                        bail!("Duplicate value {value} in group {group_id}.");
+                    } else {
+                        values |= ValueSet::from_value(value);
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
     fn restrict(cell: &mut Cell, values: ValueSet) -> Result<bool> {
         match *cell {
             Cell::Empty(mut value_set) => {
@@ -152,7 +169,7 @@ impl SolveState {
                 if group.is_superset(locations) {
                     for loc in group - locations {
                         let cell = self.get_mut(loc);
-                        if cell.is_empty()  {
+                        if cell.is_empty() {
                             changed |= Self::restrict(cell, !ValueSet::from_value(ghost_value))
                                 .with_context(|| format!("Error while restricting cell {loc} with ghost of value {ghost_value}."))?;
                         }
@@ -204,6 +221,20 @@ fn try_solve_guess(solve_state: &mut SolveState) -> Result<u32> {
     Ok(steps)
 }
 
+fn handle_error(
+    stack: &mut Vec<(SolveState, Location, CellValue)>,
+    error: anyhow::Error,
+) -> Result<SolveState> {
+    if let Some((mut prev_state, guess_loc, guess_value)) = stack.pop() {
+        let guess_cell = prev_state.get_mut(guess_loc);
+        SolveState::restrict(guess_cell, !ValueSet::from_value(guess_value)).with_context(
+            || format!("Error updating on faulty guess at {guess_loc} with value {guess_value}."),
+        )?;
+        Ok(prev_state)
+    } else {
+        bail!(error)
+    }
+}
 
 pub fn solve(board: &Board) -> Result<(Board, u32)> {
     let mut stack: Vec<(SolveState, Location, CellValue)> = vec![];
@@ -215,17 +246,7 @@ pub fn solve(board: &Board) -> Result<(Board, u32)> {
         match try_solve_guess(&mut cur_state) {
             Ok(new_steps) => num_steps += new_steps,
             Err(error) => {
-                if let Some((prev_state, guess_loc, guess_value)) = stack.pop() {
-                    cur_state = prev_state;
-                    let guess_cell = cur_state.get_mut(guess_loc);
-                    SolveState::restrict(guess_cell, !ValueSet::from_value(guess_value))
-                            .with_context(|| 
-                                format!("Error updating on faulty guess at {guess_loc} with value {guess_value}.")
-                            )?;
-                    continue;
-                } else {
-                    Err(error)?;
-                }
+                cur_state = handle_error(&mut stack, error)?;
             }
         }
 
@@ -236,8 +257,21 @@ pub fn solve(board: &Board) -> Result<(Board, u32)> {
             stack.push((cur_state, guess_loc, guess_value));
             cur_state = guess_state;
         } else {
-            return Ok((Board::from_solve_state(&cur_state), num_steps));
+            match cur_state.validate() {
+                Ok(()) => return Ok((Board::from_solve_state(&cur_state), num_steps)),
+                Err(error) => {
+                    cur_state = handle_error(&mut stack, error)?;
+                }
+            }
         }
     }
-    Ok((Board::from_solve_state(stack.first().map(|(state, _, _)| state).unwrap_or(&cur_state)), num_steps))
+    Ok((
+        Board::from_solve_state(
+            stack
+                .first()
+                .map(|(state, _, _)| state)
+                .unwrap_or(&cur_state),
+        ),
+        num_steps,
+    ))
 }
