@@ -237,7 +237,7 @@ fn handle_error(
 }
 
 pub fn solve(board: &Board) -> Result<(Board, u32)> {
-    let mut stack: Vec<(SolveState, Location, CellValue)> = vec![];
+    let mut stack: Vec<(SolveState, Location, CellValue)> = Vec::with_capacity(81);
 
     let mut cur_state = SolveState::from_board(board);
     let mut num_steps = 0;

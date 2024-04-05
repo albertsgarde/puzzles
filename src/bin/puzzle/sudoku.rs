@@ -46,6 +46,7 @@ impl Sudoku {
             "top95",
             "hardest",
             "insane",
+            "blank",
         ];
 
         let grid_dir = data_dir().join("grids");
