@@ -7,6 +7,7 @@ use std::{
 
 use anyhow::{Context, Result};
 use puzzles::sudoku::{self, Board};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 fn data_dir() -> PathBuf {
     PathBuf::from("data/sudoku")
@@ -30,6 +31,37 @@ fn load_grid_file(file: impl AsRef<Path>) -> Result<Vec<Board>> {
     let data_str = std::fs::read_to_string(file)
         .with_context(|| format!("Failed to read grid file '{file:?}'."))?;
     read_boards_from_lines(data_str.lines(), '.')
+}
+
+fn solve_set(name: &str, grids: Vec<Board>, solutions_dir: impl AsRef<Path>) -> Result<(u32, u32)> {
+    let solution_path = solutions_dir.as_ref().join(name).with_extension("txt");
+    let mut solution_file = File::create(&solution_path)
+        .with_context(|| format!("Failed to create solution file '{solution_path:?}'."))?;
+    let mut num_solved = 0;
+    let mut num_set_steps = 0;
+    let mut num_set_guesses = 0;
+    for (index, grid) in grids.iter().enumerate() {
+        let (solution, num_steps, num_guesses) = sudoku::solve(grid)
+            .with_context(|| format!("Error while solving grid {index} in set {name}"))?;
+        let solved = solution.validate().with_context(|| {
+            format!(
+                "Error validating solution for grid {index} in set {name}.\nSolution:\n{solution}Original board:\n{grid}"
+            )
+        })?.finished();
+        if solved {
+            num_solved += 1;
+            num_set_steps += num_steps;
+            num_set_guesses += num_guesses;
+        }
+        let solution_line = solution.to_pretty_string(Board::format_line, '.')?;
+        writeln!(solution_file, "{solution_line},{solved}")
+            .with_context(|| format!("Failed to write solution for grid {index} in set {name}."))?;
+    }
+    let num_grids = grids.len();
+
+    let percentage = num_solved as f64 / num_grids as f64 * 100.0;
+    println!("Solved {num_solved}/{num_grids} ({percentage:.0}%) {name} grids with {num_set_steps} steps and {num_set_guesses} guesses.",);
+    Ok((num_set_steps, num_set_guesses))
 }
 
 #[derive(Clone, Debug, clap::Args)]
@@ -67,38 +99,17 @@ impl Sudoku {
         })?;
 
         let start_time = Instant::now();
-        let mut num_total_steps = 0;
-        for (name, grids) in sets {
-            let solution_path = solutions_dir.join(name).with_extension("txt");
-            let mut solution_file = File::create(&solution_path)
-                .with_context(|| format!("Failed to create solution file '{solution_path:?}'."))?;
-            let mut num_solved = 0;
-            let mut num_set_steps = 0;
-            for (index, grid) in grids.iter().enumerate() {
-                let (solution, num_steps) = sudoku::solve(grid)
-                    .with_context(|| format!("Error while solving grid {index} in set {name}"))?;
-                let solved = solution.validate().with_context(|| {
-                    format!(
-                        "Error validating solution for grid {index} in set {name}.\nSolution:\n{solution}Original board:\n{grid}"
-                    )
-                })?.finished();
-                if solved {
-                    num_solved += 1;
-                    num_set_steps += num_steps;
-                }
-                let solution_line = solution.to_pretty_string(Board::format_line, '.')?;
-                writeln!(solution_file, "{solution_line},{solved}").with_context(|| {
-                    format!("Failed to write solution for grid {index} in set {name}.")
-                })?;
-            }
-            let num_grids = grids.len();
-            num_total_steps += num_set_steps;
-
-            let percentage = num_solved as f64 / num_grids as f64 * 100.0;
-            println!("Solved {num_solved}/{num_grids} ({percentage:.0}%) {name} grids with {num_set_steps} steps.",);
-        }
+        let (num_total_steps, num_total_guesses) = sets
+            .into_par_iter()
+            .map(|(name, grids)| solve_set(name, grids, solutions_dir.as_path()).unwrap())
+            .reduce(
+                || (0, 0),
+                |(total_steps, total_guesses), (set_steps, set_guesses)| {
+                    (total_steps + set_steps, total_guesses + set_guesses)
+                },
+            );
         let elapsed = start_time.elapsed();
-        println!("{num_total_steps} total steps used on successful solutions");
+        println!("{num_total_steps} total steps and {num_total_guesses} guesses used on successful solutions");
         println!(
             "Total time: {}s {}ms",
             elapsed.as_secs(),

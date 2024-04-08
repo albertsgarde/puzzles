@@ -236,11 +236,12 @@ fn handle_error(
     }
 }
 
-pub fn solve(board: &Board) -> Result<(Board, u32)> {
+pub fn solve(board: &Board) -> Result<(Board, u32, u32)> {
     let mut stack: Vec<(SolveState, Location, CellValue)> = Vec::with_capacity(81);
 
     let mut cur_state = SolveState::from_board(board);
     let mut num_steps = 0;
+    let mut num_guesses = 0;
 
     while num_steps < 1000 {
         match try_solve_guess(&mut cur_state) {
@@ -251,6 +252,7 @@ pub fn solve(board: &Board) -> Result<(Board, u32)> {
         }
 
         if let Some((guess_loc, guess_value)) = cur_state.guess() {
+            num_guesses += 1;
             let mut guess_state = cur_state.clone();
             let guess_cell = guess_state.get_mut(guess_loc);
             *guess_cell = Cell::Value(guess_value);
@@ -258,7 +260,7 @@ pub fn solve(board: &Board) -> Result<(Board, u32)> {
             cur_state = guess_state;
         } else {
             match cur_state.validate() {
-                Ok(()) => return Ok((Board::from_solve_state(&cur_state), num_steps)),
+                Ok(()) => return Ok((Board::from_solve_state(&cur_state), num_steps, num_guesses)),
                 Err(error) => {
                     cur_state = handle_error(&mut stack, error)?;
                 }
@@ -273,5 +275,6 @@ pub fn solve(board: &Board) -> Result<(Board, u32)> {
                 .unwrap_or(&cur_state),
         ),
         num_steps,
+        num_guesses,
     ))
 }
