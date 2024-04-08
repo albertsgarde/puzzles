@@ -30,7 +30,7 @@ impl ValueSet {
         let mut possibilities = Self::NONE;
         let value: usize = value.into();
         possibilities.possibilities.set(value - 1, true);
-        assert_eq!(possibilities & Self::LAST, Self::NONE);
+        debug_assert_eq!(possibilities & Self::LAST, Self::NONE);
         possibilities
     }
 
