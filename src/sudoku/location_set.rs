@@ -26,17 +26,6 @@ impl LocationSet {
         }
     };
 
-    pub const ALL: Self = {
-        let mut data = [u8::MAX; 11];
-        data[10] = 0b00000001;
-        Self {
-            set: BitArray {
-                _ord: PhantomData::<_>,
-                data,
-            },
-        }
-    };
-
     pub const NONE: Self = Self {
         set: bitarr![const u8, Lsb0; 0; 81],
     };
